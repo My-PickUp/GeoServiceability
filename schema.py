@@ -10,8 +10,10 @@ class Pincode(BaseModel):
 class ZipCode(BaseModel):
     zip_code: int
     
-class Check_Serv(ZipCode):
-    servicability : bool
+class Check_Serv(BaseModel):
+    zip_code: int
+    is_serviceable: bool  
+    city_id: int
     
 class Serv_area(BaseModel):
     Area_id  : int

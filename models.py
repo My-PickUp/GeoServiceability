@@ -13,10 +13,16 @@ class Serviceable_area(Base):
     
     city_id = Column(Integer, nullable=False)
     zip_code = Column(Integer, nullable=False,unique=True)
-    area_name = Column(String, nullable=False)
     is_serviceable = Column(Boolean, nullable= False, server_default='false')
     Geo_uuid = Column(Integer, primary_key=True, unique=True)
-    lat = Column(Float, nullable=False)
-    lon = Column(Float, nullable=False)   
+    lat = Column(Float, nullable=True)
+    lon = Column(Float, nullable=True)   
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
     
+    
+class Cities(Base):
+    
+    __tablename__ = "cities"
+    
+    id = Column(Integer, primary_key=True, unique=True)
+    city = Column(String, unique=True)

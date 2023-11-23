@@ -62,3 +62,36 @@ def geocodeing_data(address, api_key):
 
 x = geocodeing_data("UNITED CRICKET CLUB , NOIDA","NONtRb0nM3nqpEos8Z8ulTyYAFlt2RQIeSEgYJThoR0")
 print("Result:", x)
+
+from geopy.geocoders import Here
+from geopy.extra.rate_limiter import RateLimiter
+
+import requests
+
+def get_geocoding_data(address):
+    base_url = "https://nominatim.openstreetmap.org/search"
+    params = {
+        "q": address,
+        "format": "json",
+    }
+
+    response = requests.get(base_url, params=params)
+    data = response.json()
+
+    if data:
+        # Extracting information from the response
+        location = data[0]
+
+        latitude = location["lat"]
+        longitude = location["lon"]
+        display_name = location["display_name"]
+        
+        return {
+            "latitude": latitude,
+            "longitude": longitude,
+            "display_name": display_name,
+        }
+    else:
+        print(f"Error: Unable to geocode address {address}")
+        return None
+    
