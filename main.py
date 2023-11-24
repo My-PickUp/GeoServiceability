@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends,UploadFile,File
 from fastapi.params import Body
 import psycopg2
 from psycopg2.extras import RealDictCursor
@@ -8,6 +8,9 @@ from .schema import Pincode,Check_Serv,ZipCode
 from . import models
 from .database import engine, get_db
 from sqlalchemy.orm import Session
+import pandas as pd
+import os
+
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -63,7 +66,6 @@ def ingest_geoloc_using_pincode(Serv: Check_Serv, db:Session = Depends(get_db)):
     else:
         return {"error": "Unable to get pincode from address"}
     
-    
 
 
 @app.post("/mypickup/ingest-geolocation-latlon")
@@ -102,6 +104,7 @@ def ingest_geoloc_using_latlon(Serv: Pincode, db: Session = Depends(get_db)):
     else:
         return {"error": "Unable to get pincode from address"}
     
+
 @app.get("/mypickup/check-pincode")
 def checkpincode(zipcode: ZipCode, db: Session = Depends(get_db)):
     zip_code_value = zipcode.zip_code 
@@ -127,9 +130,6 @@ def update_Servi(zipcode : Check_Serv, db:Session = Depends(get_db)):
         return {"message": f"Serviceability for pin code {zip_code_value} updated successfully."}
     else:
         return {"message" : f"pincode {zip_code_value} not found"}
-
-
-
     
+     
     
-
