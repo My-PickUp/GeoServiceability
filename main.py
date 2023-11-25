@@ -10,6 +10,7 @@ from .database import engine, get_db
 from sqlalchemy.orm import Session
 import pandas as pd
 import os
+from .config import settings
 
 
 models.Base.metadata.create_all(bind=engine)
@@ -18,8 +19,8 @@ app = FastAPI()
 
 while True:
     try:
-        conn = psycopg2.connect(host = 'localhost', database = 'MyPickup_db', user = 'postgres', password='Sandyis100%sexy',
-                                cursor_factory=RealDictCursor)
+        conn = psycopg2.connect(host = settings.database_hostname, database = settings.database_name, user = settings.database_username, password=settings.database_password, 
+                                cursor_factory=RealDictCursor, port =settings.database_port)
         cursor = conn.cursor()
         print("Database connection was successfull")
         break
@@ -66,7 +67,32 @@ def ingest_geoloc_using_pincode(Serv: Check_Serv, db:Session = Depends(get_db)):
     else:
         return {"error": "Unable to get pincode from address"}
     
-
+@app.post("/mypickup/ingest-geolocation-pincode-file")
+def ingest_geo_file(file : UploadFile = File(...), db: Session = Depends(get_db)):
+    data = pd.read_csv(file)
+    for index, row in data.iterrows():
+        temp_zipcode = row['Pincode']
+        temp_serv = row['Servicable']
+        temp_city_name = row['District']  
+        
+        new_city = db.query(models.Cities.id).filter(models.Cities.city == temp_city_name)
+        new_serv = 1 if temp_serv == "Yes" else 0
+        new_zipcode = int(temp_zipcode)
+        
+        data = models.Serviceable_area(
+            city_id = new_city.id,
+            is_serviceable=new_serv,
+            zip_code = new_zipcode
+        )
+        if new_zipcode is not None:
+            db.add(data)
+            db.commit()
+            return {"message": f"The complete data is {data}, Zip Code: {temp_zipcode}"}
+        else:
+            return {"error": "Unable to get pincode from address"} 
+           
+           
+   
 
 @app.post("/mypickup/ingest-geolocation-latlon")
 def ingest_geoloc_using_latlon(Serv: Pincode, db: Session = Depends(get_db)):
