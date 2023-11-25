@@ -5,6 +5,7 @@ import time
 from geolocation import get_address_pincode_from_laton
 from schema import Pincode,Check_Serv,ZipCode
 import models
+from fastapi.middleware.cors import CORSMiddleware
 from database import engine, SessionLocal
 from sqlalchemy.orm import Session
 import pandas as pd
@@ -13,6 +14,14 @@ import os
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/mypickup/")
 def read_root():
