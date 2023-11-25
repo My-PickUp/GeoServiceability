@@ -1,33 +1,18 @@
 from fastapi import FastAPI, Depends,UploadFile,File
 from fastapi.params import Body
-import psycopg2
-from psycopg2.extras import RealDictCursor
+
 import time
 from geolocation import get_address_pincode_from_laton
 from schema import Pincode,Check_Serv,ZipCode
 import models
-from database import engine, get_db
+from database import engine, SessionLocal
 from sqlalchemy.orm import Session
 import pandas as pd
 import os
-from config import settings
-
 
 models.Base.metadata.create_all(bind=engine)
 
-app = FastAPI() 
-
-while True:
-    try:
-        conn = psycopg2.connect(host = settings.database_hostname, database = settings.database_name, user = settings.database_username, password=settings.database_password, 
-                                cursor_factory=RealDictCursor, port =settings.database_port)
-        cursor = conn.cursor()
-        print("Database connection was successfull")
-        break
-    except Exception as error:
-        print("Connection ti database failed")
-        print("Error : ", error)
-        time.sleep(3)
+app = FastAPI()
 
 @app.get("/mypickup/")
 def read_root():
@@ -39,7 +24,8 @@ def get_geoloc(locat: Pincode):
     return {zipcode}
 
 @app.post("/mypickup/ingest-geolocation-pincode")
-def ingest_geoloc_using_pincode(Serv: Check_Serv, db:Session = Depends(get_db)):
+def ingest_geoloc_using_pincode(Serv: Check_Serv):
+    db = SessionLocal()
     temp_zipcode = Serv.zip_code
     servic = Serv.is_serviceable
     city = Serv.city_id
@@ -68,7 +54,8 @@ def ingest_geoloc_using_pincode(Serv: Check_Serv, db:Session = Depends(get_db)):
         return {"error": "Unable to get pincode from address"}
     
 @app.post("/mypickup/ingest-geolocation-pincode-file")
-def ingest_geo_file(file : UploadFile = File(...), db: Session = Depends(get_db)):
+def ingest_geo_file(file : UploadFile = File(...)):
+    db = SessionLocal()
     data = pd.read_csv(file)
     for index, row in data.iterrows():
         temp_zipcode = row['Pincode']
@@ -95,7 +82,8 @@ def ingest_geo_file(file : UploadFile = File(...), db: Session = Depends(get_db)
    
 
 @app.post("/mypickup/ingest-geolocation-latlon")
-def ingest_geoloc_using_latlon(Serv: Pincode, db: Session = Depends(get_db)):
+def ingest_geoloc_using_latlon(Serv: Pincode):
+    db = SessionLocal()
     lat = Serv.lat
     lon = Serv.lon
     
@@ -132,7 +120,8 @@ def ingest_geoloc_using_latlon(Serv: Pincode, db: Session = Depends(get_db)):
     
 
 @app.get("/mypickup/check-pincode")
-def checkpincode(zipcode: ZipCode, db: Session = Depends(get_db)):
+def checkpincode(zipcode: ZipCode):
+    db = SessionLocal()
     zip_code_value = zipcode.zip_code 
 
     zips = db.query(models.Serviceable_area).filter(models.Serviceable_area.zip_code == zip_code_value)
@@ -144,7 +133,8 @@ def checkpincode(zipcode: ZipCode, db: Session = Depends(get_db)):
         return {f"The pin code {zip_code_value} is available, and the serviceability condition is {serv}"}
     
 @app.put('/mypickup/update-serviceability')
-def update_Servi(zipcode : Check_Serv, db:Session = Depends(get_db)):
+def update_Servi(zipcode : Check_Serv):
+    db = SessionLocal()
     zip_code_value = zipcode.zip_code 
     new_Serviceabilty = zipcode.servicability
     serviceable_area = db.query(models.Serviceable_area).filter(models.Serviceable_area.zip_code == zip_code_value).first()
