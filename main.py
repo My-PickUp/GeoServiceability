@@ -90,13 +90,15 @@ async def ingest_geo_file(file : UploadFile = File(...)):
             new_serv = 1 if temp_serv == "Yes" else 0
             new_zipcode = int(temp_zipcode)
 
-            data = models.Serviceable_area(
-                city_id=new_city.id,
-                is_serviceable=new_serv,
-                zip_code=new_zipcode
-            )
-            db.add(data)
-
+            existing_pincode = db.query(models.Serviceable_area).filter(
+                models.Serviceable_area.zip_code == new_zipcode).first()
+            if existing_pincode is None:
+                data = models.Serviceable_area(
+                    city_id=new_city.id,
+                    is_serviceable=new_serv,
+                    zip_code=new_zipcode
+                )
+                db.add(data)
         db.commit()
         return {"message": "Data successfully ingested"}
 
