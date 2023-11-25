@@ -4,3 +4,4 @@ SQLAlchemy
 uvicorn
 geopy
 requests
+pydantic_settings
