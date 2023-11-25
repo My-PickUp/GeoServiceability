@@ -6,3 +6,4 @@ pandas
 geopy
 requests
 pydantic_settings
+python-multipart
