@@ -145,7 +145,7 @@ def checkpincode(zipcode: ZipCode):
 def update_Servi(zipcode : Check_Serv):
     db = SessionLocal()
     zip_code_value = zipcode.zip_code 
-    new_Serviceabilty = zipcode.servicability
+    new_Serviceabilty = zipcode.is_serviceable
     serviceable_area = db.query(models.Serviceable_area).filter(models.Serviceable_area.zip_code == zip_code_value).first()
 
     if serviceable_area:
