@@ -3,14 +3,14 @@ from fastapi.params import Body
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import time
-from .geolocation import get_address_pincode_from_laton
-from .schema import Pincode,Check_Serv,ZipCode
-from . import models
-from .database import engine, get_db
+from geolocation import get_address_pincode_from_laton
+from schema import Pincode,Check_Serv,ZipCode
+import models
+from database import engine, get_db
 from sqlalchemy.orm import Session
 import pandas as pd
 import os
-from .config import settings
+from config import settings
 
 
 models.Base.metadata.create_all(bind=engine)
