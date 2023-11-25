@@ -1,5 +1,6 @@
-from fastapi import FastAPI, Depends,UploadFile,File
+from fastapi import FastAPI, Depends,UploadFile,File, HTTPException
 from fastapi.params import Body
+import io
 
 import time
 from geolocation import get_address_pincode_from_laton
@@ -63,31 +64,45 @@ def ingest_geoloc_using_pincode(Serv: Check_Serv):
         return {"error": "Unable to get pincode from address"}
     
 @app.post("/mypickup/ingest-geolocation-pincode-file")
-def ingest_geo_file(file : UploadFile = File(...)):
+async def ingest_geo_file(file : UploadFile = File(...)):
+
     db = SessionLocal()
-    data = pd.read_csv(file)
-    for index, row in data.iterrows():
-        temp_zipcode = row['Pincode']
-        temp_serv = row['Servicable']
-        temp_city_name = row['District']  
-        
-        new_city = db.query(models.Cities.id).filter(models.Cities.city == temp_city_name)
-        new_serv = 1 if temp_serv == "Yes" else 0
-        new_zipcode = int(temp_zipcode)
-        
-        data = models.Serviceable_area(
-            city_id = new_city.id,
-            is_serviceable=new_serv,
-            zip_code = new_zipcode
-        )
-        if new_zipcode is not None:
+    try:
+        content = await file.read()
+        data = pd.read_csv(io.StringIO(content.decode('utf-8')))
+
+        if 'Pincode' not in data.columns:
+            return {"error": "Column 'Pincode' not found in the file."}
+
+        for index, row in data.iterrows():
+            temp_zipcode = row['Pincode']
+            temp_serv = row['Servicable']
+            temp_city_name = row['District']
+            temp_city_id = row['city']
+            #print(f"Processing row - Pincode: {temp_zipcode}, Servicable: {temp_serv}, District: {temp_city_id}")
+
+            new_city = db.query(models.Cities.id).filter(models.Cities.id == temp_city_id).first()
+
+            if new_city is None:
+                #return {"error": f"City '{temp_city_name}' not found in the database."}
+                return {"error": "city not found"}
+
+            new_serv = 1 if temp_serv == "Yes" else 0
+            new_zipcode = int(temp_zipcode)
+
+            data = models.Serviceable_area(
+                city_id=new_city.id,
+                is_serviceable=new_serv,
+                zip_code=new_zipcode
+            )
             db.add(data)
-            db.commit()
-            return {"message": f"The complete data is {data}, Zip Code: {temp_zipcode}"}
-        else:
-            return {"error": "Unable to get pincode from address"} 
-           
-           
+
+        db.commit()
+        return {"message": "Data successfully ingested"}
+
+    except Exception as e:
+        print(f"Error: {e}")
+        raise HTTPException(status_code=500, detail=f"Error processing file: {e}")
    
 
 @app.post("/mypickup/ingest-geolocation-latlon")
