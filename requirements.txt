@@ -2,6 +2,7 @@ fastapi
 psycopg2-binary
 SQLAlchemy
 uvicorn
+pandas
 geopy
 requests
 pydantic_settings
