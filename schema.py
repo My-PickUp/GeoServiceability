@@ -19,4 +19,13 @@ class Serv_area(BaseModel):
     Area_id  : int
     Area_name : str
     is_serviceable : bool  
+
+class Ingest_cities(BaseModel):
+    city_name : str
+    user_email : str 
+    serviceability : bool
     
+class Update_cities(BaseModel):
+    city_id : int
+    user_email : str 
+    serviceability : bool
