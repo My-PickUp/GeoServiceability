@@ -4,7 +4,7 @@ import io
 
 import time
 from geolocation import get_address_pincode_from_laton
-from schema import Pincode,Check_Serv,ZipCode
+from schema import Pincode,Check_Serv,ZipCode,Ingest_cities, Update_cities
 import models
 from fastapi.middleware.cors import CORSMiddleware
 from database import engine, SessionLocal
