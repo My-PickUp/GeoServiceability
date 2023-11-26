@@ -25,4 +25,14 @@ class Cities(Base):
     __tablename__ = "cities"
     
     id = Column(Integer, primary_key=True, unique=True)
-    city = Column(String, unique=True)
+    city = Column(String, unique=True, nullable=False)
+    serviceability = Column(Boolean, nullable=False)
+
+    
+class User_cities(Base):
+    __tablename__ = "user_changes_for_cities"
+    
+    id = Column(Integer,primary_key=True,unique=True, nullable=False)
+    city_id = Column(Integer, ForeignKey("cities.id", ondelete="CASCADE"), nullable=False)
+    user_email = Column(String, nullable=False)
+    done_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
