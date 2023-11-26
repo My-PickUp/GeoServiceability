@@ -183,4 +183,57 @@ def update_Servi(zipcode : Check_Serv):
         return {"message" : f"pincode {zip_code_value} not found"}
     
      
-    
+
+@app.post('/mypickup/ingest-cities')
+def ingest_cities(city_data: Ingest_cities):
+    db = SessionLocal()
+    city_temp_name = city_data.city_name
+    user_email = city_data.user_email
+    city_serv = city_data.serviceability
+
+    present_city = db.query(models.Cities.id).filter(models.Cities.city == city_temp_name).first()
+
+    if present_city is not None:
+        return {"city is already present"}
+
+    # Insert the new city
+    city_datas = models.Cities(
+        city=city_temp_name,
+        serviceability=city_serv
+    )
+    db.add(city_datas)
+    db.commit()
+
+    # Get the id of the newly inserted city
+    city_id = city_datas.id
+
+    # Create User_cities instance
+    user_data = models.User_cities(
+        city_id=city_id,
+        user_email=user_email
+    )
+
+    db.add(user_data)
+    db.commit()
+
+@app.put('/mypickup/ingest-cities/update')
+def update_cities(city_data: Update_cities):
+    db = SessionLocal()
+    city_temp_id = city_data.city_id
+    user_email = city_data.user_email
+    city_serv = city_data.serviceability
+
+    present_city = db.query(models.Cities).filter(models.Cities.id == city_temp_id).first()
+
+    if present_city is None:
+        return {"city is not present"}
+
+    present_city.serviceability = city_serv
+
+    user_data = models.User_cities(
+        city_id=city_temp_id,
+        user_email=user_email
+    )
+
+    db.add(user_data)
+    db.commit()
