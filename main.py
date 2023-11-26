@@ -69,37 +69,46 @@ async def ingest_geo_file(file : UploadFile = File(...)):
     db = SessionLocal()
     try:
         content = await file.read()
-        data = pd.read_csv(io.StringIO(content.decode('utf-8')))
+        df = pd.read_csv(io.StringIO(content.decode('utf-8')))
 
-        if 'Pincode' not in data.columns:
+        # Convert column names to lowercase and remove leading/trailing spaces
+        df.columns = df.columns.str.lower().str.strip()
+
+        if 'pincode' not in df.columns:
             return {"error": "Column 'Pincode' not found in the file."}
 
-        for index, row in data.iterrows():
-            temp_zipcode = row['Pincode']
-            temp_serv = row['Servicable']
-            temp_city_name = row['District']
-            temp_city_id = row['city']
-            #print(f"Processing row - Pincode: {temp_zipcode}, Servicable: {temp_serv}, District: {temp_city_id}")
-
-            new_city = db.query(models.Cities.id).filter(models.Cities.id == temp_city_id).first()
+        for index, row in df.iterrows():
+            temp_zipcode = row['pincode']
+            temp_serv = row['servicable']
+            temp_city_name = row['district']
+            
+            new_city = db.query(models.Cities.id).filter(models.Cities.city == temp_city_name).first()
 
             if new_city is None:
-                #return {"error": f"City '{temp_city_name}' not found in the database."}
-                return {"error": "city not found"}
-
-            new_serv = 1 if temp_serv == "Yes" else 0
+                return {"error": f"City not found for zipcode {temp_zipcode}"}
+            
             new_zipcode = int(temp_zipcode)
-
-            existing_pincode = db.query(models.Serviceable_area).filter(
-                models.Serviceable_area.zip_code == new_zipcode).first()
-            if existing_pincode is None:
-                data = models.Serviceable_area(
-                    city_id=new_city.id,
+            print(temp_zipcode)
+            
+            # Check if the zip_code already exists in the database
+            existing_zipcode = db.query(models.Serviceable_area).filter(models.Serviceable_area.zip_code == new_zipcode).first()
+            print(existing_zipcode)
+            
+            if existing_zipcode is None:
+                print("ok")
+                # Skip insertion if the zip_code already exists
+                new_city_id = new_city[0]
+                new_serv = 1 if str(temp_serv).lower() == "yes" else 0
+                
+                # Create a new record only if the zip_code doesn't exist
+                new_record = models.Serviceable_area(
+                    city_id=new_city_id,
                     is_serviceable=new_serv,
                     zip_code=new_zipcode
                 )
-                db.add(data)
-        db.commit()
+                db.add(new_record)
+                db.commit()
+
         return {"message": "Data successfully ingested"}
 
     except Exception as e:
