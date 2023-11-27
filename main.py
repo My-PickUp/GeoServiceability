@@ -64,7 +64,8 @@ def ingest_geoloc_using_pincode(Serv: Check_Serv):
         return {"error": "Unable to get pincode from address"}
     
 @app.post("/mypickup/ingest-geolocation-pincode-file")
-async def ingest_geo_file(file: UploadFile = File(...), db: Session = Depends(get_db)):
+async def ingest_geo_file(file: UploadFile = File(...)):
+    db = SessionLocal()
     try:
         content = await file.read()
         df = pd.read_csv(io.StringIO(content.decode('utf-8')))
