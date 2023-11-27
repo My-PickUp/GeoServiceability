@@ -64,9 +64,7 @@ def ingest_geoloc_using_pincode(Serv: Check_Serv):
         return {"error": "Unable to get pincode from address"}
     
 @app.post("/mypickup/ingest-geolocation-pincode-file")
-async def ingest_geo_file(file : UploadFile = File(...)):
-
-    db = SessionLocal()
+async def ingest_geo_file(file: UploadFile = File(...), db: Session = Depends(get_db)):
     try:
         content = await file.read()
         df = pd.read_csv(io.StringIO(content.decode('utf-8')))
@@ -77,29 +75,39 @@ async def ingest_geo_file(file : UploadFile = File(...)):
         if 'pincode' not in df.columns:
             return {"error": "Column 'Pincode' not found in the file."}
 
+        # List to store unique zip codes
+        unique_zip_codes: List[int] = []
+
         for index, row in df.iterrows():
             temp_zipcode = row['pincode']
             temp_serv = row['servicable']
             temp_city_name = row['district']
-            
+
             new_city = db.query(models.Cities.id).filter(models.Cities.city == temp_city_name).first()
 
             if new_city is None:
                 return {"error": f"City not found for zipcode {temp_zipcode}"}
-            
+
             new_zipcode = int(temp_zipcode)
             print(temp_zipcode)
-            
+
+            # Check if the zip_code already exists in the list
+            if new_zipcode in unique_zip_codes:
+                continue  # Skip if already processed
+
             # Check if the zip_code already exists in the database
             existing_zipcode = db.query(models.Serviceable_area).filter(models.Serviceable_area.zip_code == new_zipcode).first()
             print(existing_zipcode)
-            
+
             if existing_zipcode is None:
                 print("ok")
-                # Skip insertion if the zip_code already exists
+                # Add the zip_code to the list
+                unique_zip_codes.append(new_zipcode)
+
+                # Proceed with insertion
                 new_city_id = new_city[0]
                 new_serv = 1 if str(temp_serv).lower() == "yes" else 0
-                
+
                 # Create a new record only if the zip_code doesn't exist
                 new_record = models.Serviceable_area(
                     city_id=new_city_id,
@@ -107,7 +115,9 @@ async def ingest_geo_file(file : UploadFile = File(...)):
                     zip_code=new_zipcode
                 )
                 db.add(new_record)
-                db.commit()
+
+        # Commit changes to the database after processing all rows
+        db.commit()
 
         return {"message": "Data successfully ingested"}
 
