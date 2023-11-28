@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from database import engine, SessionLocal
 from sqlalchemy.orm import Session
 import pandas as pd
-import os
+import os 
 
 models.Base.metadata.create_all(bind=engine)
 
