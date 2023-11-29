@@ -167,7 +167,7 @@ def ingest_geoloc_using_latlon(Serv: Pincode):
         return {"error": "Unable to get pincode from address"}
     
 
-@app.get("/mypickup/check-pincode")
+@app.post("/mypickup/check-pincode")
 def checkpincode(zipcode: ZipCode):
     db = SessionLocal()
     zip_code_value = zipcode.zip_code 
