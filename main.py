@@ -3,7 +3,9 @@ from typing import List
 from fastapi import FastAPI, Depends,UploadFile,File, HTTPException
 from fastapi.params import Body
 import io
-
+from slowapi.errors import RateLimitExceeded
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
 import time
 from geolocation import get_address_pincode_from_laton
 from schema import Pincode,Check_Serv,ZipCode,Ingest_cities, Update_cities
@@ -15,7 +17,7 @@ import pandas as pd
 import os 
 
 models.Base.metadata.create_all(bind=engine)
-
+limiter = Limiter(key_func=get_remote_address)
 app = FastAPI()
 
 app.add_middleware(
@@ -25,6 +27,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 @app.get("/mypickup/")
 def read_root():
