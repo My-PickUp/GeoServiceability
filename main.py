@@ -369,7 +369,6 @@ def get_time_difference(time1, time2):
     delta = abs(t1 - t2)
     return delta.total_seconds() / 60
 
-
 customers = [
     ("Jayanthi", "12.97829892, 77.62327584", "12.94522175, 77.62963663", "07:30"),
     ("Michelle", "12.92513444, 77.67091976", "12.91389474, 77.62436053", "07:40"),
@@ -426,3 +425,22 @@ for pair in optimized_pairs:
 #     ("Sindhu", "12.97185443, 77.62859282", "14:30"),
 # ]
 
+import googlemaps
+
+# Initialize Google Maps client with API key
+api_key = 'AIzaSyCNrNiAIsXKD84dZbamrDLCofJ_NNMoLNM'  # Replace 'YOUR_API_KEY' with your actual API key
+gmaps = googlemaps.Client(key=api_key)
+
+
+drop_prasanthi = "12.93188306, 77.61444762"
+drop_sulbha = "12.95975897, 77.64198"
+
+
+route_prasanthi_to_sulbha = gmaps.directions(drop_prasanthi, drop_sulbha, mode="driving")
+route_sulbha_to_prasanthi = gmaps.directions(drop_sulbha, drop_prasanthi, mode="driving")
+
+# Check if the routes overlap
+if route_prasanthi_to_sulbha and route_sulbha_to_prasanthi:
+    print("The drop points of Prasanthi and Sulbha lie on the same route.")
+else:
+    print("The drop points of Prasanthi and Sulbha do not lie on the same route.")
