@@ -1,6 +1,15 @@
 from typing import List
+import csv,json
+from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends, Query
+import googlemaps
+import asyncio
+from datetime import datetime
+from itertools import combinations
+from typing import List
 
 from fastapi import FastAPI, Depends,UploadFile,File, HTTPException
+from concurrent.futures import ThreadPoolExecutor
 from fastapi.params import Body
 import io
 from slowapi.errors import RateLimitExceeded
@@ -269,32 +278,98 @@ from datetime import datetime
 api_key = 'AIzaSyCNrNiAIsXKD84dZbamrDLCofJ_NNMoLNM'  # Replace 'YOUR_API_KEY' with your actual API key
 gmaps = googlemaps.Client(key=api_key)
 
+def read_customer_data_from_csv(csv_file_path):
+    customers = []
+    with open(csv_file_path, "r", newline='') as csvfile:
+        reader = csv.reader(csvfile)
+        # Skip header if present
+        next(reader, None)
+        for row in reader:
+            # Assuming the CSV structure is: Name, Start Location, End Location, Time
+            name = row[1]  # Name
+            pickup_location = f"{row[2]}, {row[3]}"  # Start Location
+            drop_location = f"{row[4]}, {row[5]}"  # End Location
+            time = remove_seconds_from_time(row[6])  # Time
+            customers.append({'name': name, 'pickup_location': pickup_location, 'drop_location': drop_location, 'time': time})
+    return customers
 
-def calculate_bearing(coord1, coord2):
+def remove_seconds_from_time(time_str):
     """
-    Calculate the bearing (direction) between two coordinates.
+    Removes seconds from the time string.
+    If the time string contains a date part, removes the date part as well.
     """
-    lat1, lon1 = map(float, coord1.split(','))
-    lat2, lon2 = map(float, coord2.split(','))
+    # Split the time string by space to handle scenarios with a date part
+    time_parts = time_str.split(' ')
+    if len(time_parts) >= 2:  # Check if there is a date part
+        # Split the time part by colon to handle scenarios with seconds
+        time_time_parts = time_parts[1].split(':')
+        if len(time_time_parts) >= 2:  # Ensure there are at least two parts (hours and minutes)
+            return time_parts[1]  # Keep only the second part (time)
+        else:
+            return time_parts[1]  # Return the time part with removed date
+    else:
+        # Split the time string by colon to handle scenarios without a date part
+        time_parts = time_str.split(':')
+        if len(time_parts) >= 2:  # Ensure there are at least two parts (hours and minutes)
+            return ':'.join(time_parts[0:2])  # Keep only the first two parts (hours and minutes)
+        else:
+            return time_str
 
-    # Convert latitude and longitude from degrees to radians
-    lat1, lon1, lat2, lon2 = map(math.radians, [lat1, lon1, lat2, lon2])
+csv_file_path = '/Users/saionmukherjeesmacbookpro/Downloads/lead_customers_data.csv'  # Replace with the path to your CSV file
+customers = read_customer_data_from_csv(csv_file_path)
 
-    # Calculate the difference in longitudes
-    d_lon = lon2 - lon1
+# Convert list of dictionaries to JSON
+json_customers = json.dumps(customers, indent=4)
 
-    # Calculate the bearing
-    x = math.cos(lat2) * math.sin(d_lon)
-    y = math.cos(lat1) * math.sin(lat2) - math.sin(lat1) * math.cos(lat2) * math.cos(d_lon)
-    bearing = math.atan2(x, y)
+print(json_customers)
 
-    # Convert bearing from radians to degrees
-    bearing = math.degrees(bearing)
+gmaps = googlemaps.Client(key=api_key)
 
-    # Normalize bearing to a compass bearing (0 to 360 degrees)
-    bearing = (bearing + 360) % 360
+# Cache for route planning and distance calculation results
+route_cache = {}
 
-    return bearing
+@app.get("/optimize-pooling/")
+def optimize_pooling(max_distance_threshold: float = 5, max_time_interval: int = 20):
+
+    customers = json.loads(json_customers)
+
+    optimized_pairs = []
+
+    customer_combinations = list(combinations(customers, 2))
+
+    with ThreadPoolExecutor() as executor:
+        results = executor.map(process_pair, customer_combinations,
+                               [max_distance_threshold] * len(customer_combinations),
+                               [max_time_interval] * len(customer_combinations))
+
+    for result in results:
+        if result:
+            optimized_pairs.append(result)
+
+    if not optimized_pairs:
+        raise HTTPException(status_code=404, detail="No optimized pairs found within the given thresholds.")
+
+    optimized_pairs.sort(key=lambda x: (x[0], x[2]))  # Sort pairs based on distance and customer name
+    return {"optimized_pairs": optimized_pairs}
+
+
+def process_pair(pair, max_distance_threshold, max_time_interval):
+    customer1, customer2 = pair
+
+    key = (customer1['pickup_location'], customer1['drop_location'], customer2['pickup_location'], customer2['drop_location'])
+    if key in route_cache:
+        route1, route2 = route_cache[key]
+    else:
+        route1 = plan_route(customer1['pickup_location'], customer1['drop_location'])
+        route2 = plan_route(customer2['pickup_location'], customer2['drop_location'])
+        route_cache[key] = (route1, route2)
+
+    if check_route_overlap(route1, route2):
+        distance = calculate_distance(customer1['pickup_location'], customer2['pickup_location'])
+        time_interval = abs(get_time_difference(customer1['time'], customer2['time']))
+        if distance <= max_distance_threshold and time_interval <= max_time_interval:
+            return (customer1['name'], customer2['name'], distance, customer1['time'], customer2['time'])
+    return None
 
 
 def plan_route(start_point, end_point):
@@ -308,52 +383,34 @@ def plan_route(start_point, end_point):
 def check_route_overlap(route1, route2):
     """
     Check if route1 passes through any point in route2.
+    Extract start and end locations from each step in both routes
     """
+    route1_locations = set()
     for leg1 in route1[0]['legs']:
-        for leg2 in route2[0]['legs']:
-            for step1 in leg1['steps']:
-                for step2 in leg2['steps']:
-                    if step1['start_location'] == step2['start_location'] or step1['end_location'] == step2[
-                        'end_location']:
-                        return True
+        for step1 in leg1['steps']:
+            route1_locations.add((step1['start_location']['lat'], step1['start_location']['lng']))
+            route1_locations.add((step1['end_location']['lat'], step1['end_location']['lng']))
+
+    route2_locations = set()
+    for leg2 in route2[0]['legs']:
+        for step2 in leg2['steps']:
+            route2_locations.add((step2['start_location']['lat'], step2['start_location']['lng']))
+            route2_locations.add((step2['end_location']['lat'], step2['end_location']['lng']))
+
+    '''
+    Check for overlap using set intersection
+    '''
+    if route1_locations.intersection(route2_locations):
+        return True
     return False
-
-
-def find_optimized_pooling(customers, max_distance=5, max_time_interval=30):
-    """
-    Find optimized pooling pairs considering route overlap.
-    """
-    optimized_pairs = []
-    paired_customers = set()
-
-    for i in range(len(customers)):
-        for j in range(i + 1, len(customers)):
-            customer1 = customers[i]
-            customer2 = customers[j]
-
-            # Plan route for customer 1
-            route1 = plan_route(customer1[1], customer1[2])
-
-            # Plan route for customer 2
-            route2 = plan_route(customer2[1], customer2[2])
-
-            # Check if routes overlap
-            if check_route_overlap(route1, route2):
-                distance = calculate_distance(customer1[1], customer2[1])
-                time_interval = abs(get_time_difference(customer1[3], customer2[3]))
-                if distance <= max_distance and time_interval <= max_time_interval:
-                    optimized_pairs.append((customer1[0], customer2[0], distance, customer1[3], customer2[3]))
-                    paired_customers.add((customer1[0], customer2[0]))  # Mark this pair as paired
-
-    optimized_pairs.sort(key=lambda x: (x[0], x[2]))  # Sort pairs based on distance and customer name
-    return optimized_pairs
 
 
 def calculate_distance(coord1, coord2):
     """
     Calculate the distance between two coordinates using Google Maps Distance Matrix API.
+    Fetch distance using Google Maps Distance Matrix API.
     """
-    # Fetch distance using Google Maps Distance Matrix API
+
     result = gmaps.distance_matrix(coord1, coord2, mode='driving', units='metric')
     distance = result['rows'][0]['elements'][0]['distance']['value'] / 1000  # Convert meters to kilometers
     return distance
@@ -369,38 +426,16 @@ def get_time_difference(time1, time2):
     delta = abs(t1 - t2)
     return delta.total_seconds() / 60
 
-customers = [
-    ("Jayanthi", "12.97829892, 77.62327584", "12.94522175, 77.62963663", "07:30"),
-    ("Michelle", "12.92513444, 77.67091976", "12.91389474, 77.62436053", "07:40"),
-    ("Divya", "12.88196291, 77.64302832", "12.91198025, 77.65263863", "08:30"),
-    ("Priyanjali", "12.88196569, 77.6430314", "12.91198025, 77.65263863", "08:30"),
-    ("Vishal", "12.92121593, 77.6186117", "12.91156945, 77.64921486", "08:30"),
-    ("Kirti", "12.96079998, 77.6558958", "12.9287884, 77.63297267", "08:30"),
-    ("Nishali", "12.95398853, 77.65082466", "12.9287884, 77.63297267", "08:45"),
-    ("Prasanthi", "12.90826656, 77.67914018", "12.93188306, 77.61444762", "08:45"),
-    ("Prerna", "12.90228451, 77.67002904", "12.91224387, 77.63310405", "08:50"),
-    ("Sulbha", "12.88428113, 77.66820498", "12.95975897, 77.64198", "09:00"),
-    ("Aruna P", "12.90816163, 77.67840084", "12.91492294, 77.64458092", "09:20"),
-    ("Poornima Prabhu", "12.91402652, 77.61614057", "12.93321583, 77.60164769", "09:30"),
-    ("Srushti", "12.91276849, 77.62849367", "12.9416401, 77.69093007", "09:30"),
-    ("Alisha Hafiz", "12.91008094, 77.68153006", "12.93944813, 77.68944408", "11:00"),
-    ("Swati", "12.94597306, 77.67876846", "12.98162079, 77.64564502", "11:15"),
-    ("Lubna Malhotra", "12.89782214, 77.66785692", "12.90121256, 77.65152925", "11:45"),
-    ("Asha", "12.89055682, 77.66876893", "12.88424792, 77.66820148", "12:30"),
-    ("Ruella D", "12.97174329, 77.628696", "12.98580352, 77.67105926", "12:45"),
-    ("Juanita Marietta Luiz", "12.99128269, 77.6623218", "12.95184367, 77.64029784", "13:00"),
-    ("Sindhu", "12.97185443, 77.62859282", "12.97389217, 77.65466517", "14:30"),
-]
 
-max_distance_threshold = 5  # Maximum distance threshold in kilometers
-max_time_interval = 20  # Maximum time interval in minutes
-
-optimized_pairs = find_optimized_pooling(customers, max_distance_threshold, max_time_interval)
-
-print(
-    f"Optimized Pairs for Pooling (within {max_distance_threshold} km and at least {max_time_interval} minutes time interval):")
-for pair in optimized_pairs:
-    print(f"{pair[0]} and {pair[1]} - Distance: {pair[2]} km, Timings: {pair[3]} and {pair[4]}")
+# max_distance_threshold = 5  # Maximum distance threshold in kilometers
+# max_time_interval = 20  # Maximum time interval in minutes
+#
+# optimized_pairs = find_optimized_pooling(customers, max_distance_threshold, max_time_interval)
+#
+# print(
+#     f"Optimized Pairs for Pooling (within {max_distance_threshold} km and at least {max_time_interval} minutes time interval):")
+# for pair in optimized_pairs:
+#     print(f"{pair[0]} and {pair[1]} - Distance: {pair[2]} km, Timings: {pair[3]} and {pair[4]}")
 
 # customers = [
 #     ("Jayanthi", "12.97829892, 77.62327584", "07:30"),
@@ -425,22 +460,22 @@ for pair in optimized_pairs:
 #     ("Sindhu", "12.97185443, 77.62859282", "14:30"),
 # ]
 
-import googlemaps
+# # Initialize Google Maps client with API key
+# api_key = 'AIzaSyCNrNiAIsXKD84dZbamrDLCofJ_NNMoLNM'  # Replace 'YOUR_API_KEY' with your actual API key
+# gmaps = googlemaps.Client(key=api_key)
+#
+#
+# drop_prasanthi = "12.93188306, 77.61444762"
+# drop_sulbha = "12.95975897, 77.64198"
+#
+#
+# route_prasanthi_to_sulbha = gmaps.directions(drop_prasanthi, drop_sulbha, mode="driving")
+# route_sulbha_to_prasanthi = gmaps.directions(drop_sulbha, drop_prasanthi, mode="driving")
+#
+# # Check if the routes overlap
+# if route_prasanthi_to_sulbha and route_sulbha_to_prasanthi:
+#     print("The drop points of Prasanthi and Sulbha lie on the same route.")
+# else:
+#     print("The drop points of Prasanthi and Sulbha do not lie on the same route.")
+#
 
-# Initialize Google Maps client with API key
-api_key = 'AIzaSyCNrNiAIsXKD84dZbamrDLCofJ_NNMoLNM'  # Replace 'YOUR_API_KEY' with your actual API key
-gmaps = googlemaps.Client(key=api_key)
-
-
-drop_prasanthi = "12.93188306, 77.61444762"
-drop_sulbha = "12.95975897, 77.64198"
-
-
-route_prasanthi_to_sulbha = gmaps.directions(drop_prasanthi, drop_sulbha, mode="driving")
-route_sulbha_to_prasanthi = gmaps.directions(drop_sulbha, drop_prasanthi, mode="driving")
-
-# Check if the routes overlap
-if route_prasanthi_to_sulbha and route_sulbha_to_prasanthi:
-    print("The drop points of Prasanthi and Sulbha lie on the same route.")
-else:
-    print("The drop points of Prasanthi and Sulbha do not lie on the same route.")
