@@ -2247,6 +2247,8 @@ json_customers = [
 @app.get("/optimize-pooling/")
 def optimize_pooling(max_distance_threshold: float = 5, max_time_interval: int = 20):
 
+    print("Optimize Pooling API called.")
+
     optimized_pairs = []
 
     customer_combinations = list(combinations(json_customers, 2))
@@ -2261,19 +2263,25 @@ def optimize_pooling(max_distance_threshold: float = 5, max_time_interval: int =
             optimized_pairs.append(result)
 
     if not optimized_pairs:
+        print("No optimized pairs found within the given thresholds.")
         raise HTTPException(status_code=404, detail="No optimized pairs found within the given thresholds.")
 
     optimized_pairs.sort(key=lambda x: (x[0], x[2]))  # Sort pairs based on distance and customer name
+
+    print("Optimization completed successfully.")
     return {"optimized_pairs": optimized_pairs}
 
 
 def process_pair(pair, max_distance_threshold, max_time_interval):
     customer1, customer2 = pair
 
+    print(f"Processing pair: {customer1['name']} - {customer2['name']}")
+
     key = (customer1['pickup_location'], customer1['drop_location'], customer2['pickup_location'], customer2['drop_location'])
     if key in route_cache:
         route1, route2 = route_cache[key]
     else:
+        print("Fetching routes from cache.")
         route1 = plan_route(customer1['pickup_location'], customer1['drop_location'])
         route2 = plan_route(customer2['pickup_location'], customer2['drop_location'])
         route_cache[key] = (route1, route2)
@@ -2282,6 +2290,7 @@ def process_pair(pair, max_distance_threshold, max_time_interval):
         distance = calculate_distance(customer1['pickup_location'], customer2['pickup_location'])
         time_interval = abs(get_time_difference(customer1['time'], customer2['time']))
         if distance <= max_distance_threshold and time_interval <= max_time_interval:
+            print(f"Optimized pair found: {customer1['name']} - {customer2['name']}")
             return (customer1['name'], customer2['name'], distance, customer1['time'], customer2['time'])
     return None
 
@@ -2290,6 +2299,7 @@ def plan_route(start_point, end_point):
     """
     Plan the route from start_point to end_point.
     """
+    print(f"Planning route from {start_point} to {end_point}.")
     directions_result = gmaps.directions(start_point, end_point, mode="driving", departure_time=datetime.now())
     return directions_result
 
@@ -2299,6 +2309,7 @@ def check_route_overlap(route1, route2):
     Check if route1 passes through any point in route2.
     Extract start and end locations from each step in both routes
     """
+    print("Checking route overlap.")
     route1_locations = set()
     for leg1 in route1[0]['legs']:
         for step1 in leg1['steps']:
@@ -2311,9 +2322,6 @@ def check_route_overlap(route1, route2):
             route2_locations.add((step2['start_location']['lat'], step2['start_location']['lng']))
             route2_locations.add((step2['end_location']['lat'], step2['end_location']['lng']))
 
-    '''
-    Check for overlap using set intersection
-    '''
     if route1_locations.intersection(route2_locations):
         return True
     return False
@@ -2322,9 +2330,8 @@ def check_route_overlap(route1, route2):
 def calculate_distance(coord1, coord2):
     """
     Calculate the distance between two coordinates using Google Maps Distance Matrix API.
-    Fetch distance using Google Maps Distance Matrix API.
     """
-
+    print(f"Calculating distance between {coord1} and {coord2}.")
     result = gmaps.distance_matrix(coord1, coord2, mode='driving', units='metric')
     distance = result['rows'][0]['elements'][0]['distance']['value'] / 1000  # Convert meters to kilometers
     return distance
@@ -2334,6 +2341,7 @@ def get_time_difference(time1, time2):
     '''
     Function to calculate the time difference in minutes between two time strings.
     '''
+    print(f"Calculating time difference between {time1} and {time2}.")
     fmt = "%H:%M"
     t1 = datetime.strptime(time1, fmt)
     t2 = datetime.strptime(time2, fmt)
