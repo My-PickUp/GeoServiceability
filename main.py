@@ -2255,14 +2255,18 @@ def optimize_pooling(max_distance_threshold: float = 5, max_time_interval: int =
 
     customer_combinations = list(combinations(json_customers, 2))
 
-    with ThreadPoolExecutor() as executor:
-        results = executor.map(process_pair, customer_combinations,
-                               [max_distance_threshold] * len(customer_combinations),
-                               [max_time_interval] * len(customer_combinations))
+    num_customers_per_batch = 100
+    for i in range(0, len(customer_combinations), num_customers_per_batch):
+        batch_combinations = customer_combinations[i:i+num_customers_per_batch]
 
-    for result in results:
-        if result:
-            optimized_pairs.append(result)
+        with ThreadPoolExecutor() as executor:
+            results = executor.map(process_pair, batch_combinations,
+                                   [max_distance_threshold] * len(batch_combinations),
+                                   [max_time_interval] * len(batch_combinations))
+
+        for result in results:
+            if result:
+                optimized_pairs.append(result)
 
     if not optimized_pairs:
         print("No optimized pairs found within the given thresholds.")
