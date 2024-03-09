@@ -327,11 +327,7 @@ gmaps = googlemaps.Client(key=api_key)
 
 # Cache for route planning and distance calculation results
 route_cache = {}
-
-@app.get("/optimize-pooling/")
-def optimize_pooling(max_distance_threshold: float = 5, max_time_interval: int = 20):
-
-    customers = json.loads([
+json_customers = [
     {
         "name": "Seenu",
         "pickup_location": "12.77913462, 77.72965295",
@@ -2246,7 +2242,12 @@ def optimize_pooling(max_distance_threshold: float = 5, max_time_interval: int =
         "drop_location": "12.9271463, 77.6810426",
         "time": "20:30"
     }
-])
+]
+
+@app.get("/optimize-pooling/")
+def optimize_pooling(max_distance_threshold: float = 5, max_time_interval: int = 20):
+
+    customers = json.loads(json_customers)
 
     optimized_pairs = []
 
