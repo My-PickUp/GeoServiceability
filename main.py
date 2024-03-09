@@ -2247,11 +2247,9 @@ json_customers = [
 @app.get("/optimize-pooling/")
 def optimize_pooling(max_distance_threshold: float = 5, max_time_interval: int = 20):
 
-    customers = json.loads(json_customers)
-
     optimized_pairs = []
 
-    customer_combinations = list(combinations(customers, 2))
+    customer_combinations = list(combinations(json_customers, 2))
 
     with ThreadPoolExecutor() as executor:
         results = executor.map(process_pair, customer_combinations,
