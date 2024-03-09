@@ -2244,6 +2244,8 @@ json_customers = [
     }
 ]
 
+optimized_pairs_list = []
+
 @app.get("/optimize-pooling/")
 def optimize_pooling(max_distance_threshold: float = 5, max_time_interval: int = 20):
 
@@ -2290,8 +2292,10 @@ def process_pair(pair, max_distance_threshold, max_time_interval):
         distance = calculate_distance(customer1['pickup_location'], customer2['pickup_location'])
         time_interval = abs(get_time_difference(customer1['time'], customer2['time']))
         if distance <= max_distance_threshold and time_interval <= max_time_interval:
+            optimized_pair = (customer1['name'], customer2['name'], distance, customer1['time'], customer2['time'])
+            optimized_pairs_list.append(optimized_pair)
             print(f"Optimized pair found: {customer1['name']} - {customer2['name']}")
-            return (customer1['name'], customer2['name'], distance, customer1['time'], customer2['time'])
+            return optimized_pair
     return None
 
 
