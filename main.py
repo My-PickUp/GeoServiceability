@@ -2247,7 +2247,7 @@ json_customers = [
 optimized_pairs_list = []
 
 @app.get("/optimize-pooling/")
-def optimize_pooling(max_distance_threshold: float = 5, max_time_interval: int = 20):
+async def optimize_pooling(max_distance_threshold: float = 5, max_time_interval: int = 20):
 
     print("Optimize Pooling API called.")
 
@@ -2259,12 +2259,9 @@ def optimize_pooling(max_distance_threshold: float = 5, max_time_interval: int =
     for i in range(0, len(customer_combinations), num_customers_per_batch):
         batch_combinations = customer_combinations[i:i+num_customers_per_batch]
 
-        with ThreadPoolExecutor() as executor:
-            results = executor.map(process_pair, batch_combinations,
-                                   [max_distance_threshold] * len(batch_combinations),
-                                   [max_time_interval] * len(batch_combinations))
+        batch_results = await asyncio.gather(*[process_pair(pair, max_distance_threshold, max_time_interval) for pair in batch_combinations])
 
-        for result in results:
+        for result in batch_results:
             if result:
                 optimized_pairs.append(result)
 
@@ -2278,7 +2275,7 @@ def optimize_pooling(max_distance_threshold: float = 5, max_time_interval: int =
     return {"optimized_pairs": optimized_pairs}
 
 
-def process_pair(pair, max_distance_threshold, max_time_interval):
+async def process_pair(pair, max_distance_threshold, max_time_interval):
     customer1, customer2 = pair
 
     print(f"Processing pair: {customer1['name']} - {customer2['name']}")
@@ -2288,13 +2285,13 @@ def process_pair(pair, max_distance_threshold, max_time_interval):
         route1, route2 = route_cache[key]
     else:
         print("Fetching routes from cache.")
-        route1 = plan_route(customer1['pickup_location'], customer1['drop_location'])
-        route2 = plan_route(customer2['pickup_location'], customer2['drop_location'])
+        route1 = await plan_route(customer1['pickup_location'], customer1['drop_location'])
+        route2 = await plan_route(customer2['pickup_location'], customer2['drop_location'])
         route_cache[key] = (route1, route2)
 
-    if check_route_overlap(route1, route2):
-        distance = calculate_distance(customer1['pickup_location'], customer2['pickup_location'])
-        time_interval = abs(get_time_difference(customer1['time'], customer2['time']))
+    if await check_route_overlap(route1, route2):
+        distance = await calculate_distance(customer1['pickup_location'], customer2['pickup_location'])
+        time_interval = abs(await get_time_difference(customer1['time'], customer2['time']))
         if distance <= max_distance_threshold and time_interval <= max_time_interval:
             optimized_pair = (customer1['name'], customer2['name'], distance, customer1['time'], customer2['time'])
             optimized_pairs_list.append(optimized_pair)
@@ -2303,7 +2300,7 @@ def process_pair(pair, max_distance_threshold, max_time_interval):
     return None
 
 
-def plan_route(start_point, end_point):
+async def plan_route(start_point, end_point):
     """
     Plan the route from start_point to end_point.
     """
@@ -2312,7 +2309,7 @@ def plan_route(start_point, end_point):
     return directions_result
 
 
-def check_route_overlap(route1, route2):
+async def check_route_overlap(route1, route2):
     """
     Check if route1 passes through any point in route2.
     Extract start and end locations from each step in both routes
@@ -2335,7 +2332,7 @@ def check_route_overlap(route1, route2):
     return False
 
 
-def calculate_distance(coord1, coord2):
+async def calculate_distance(coord1, coord2):
     """
     Calculate the distance between two coordinates using Google Maps Distance Matrix API.
     """
@@ -2345,7 +2342,7 @@ def calculate_distance(coord1, coord2):
     return distance
 
 
-def get_time_difference(time1, time2):
+async def get_time_difference(time1, time2):
     '''
     Function to calculate the time difference in minutes between two time strings.
     '''
