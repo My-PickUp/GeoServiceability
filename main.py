@@ -367,6 +367,7 @@ async def merge_pairs(left_half, right_half, left_pairs, right_pairs, max_distan
 
     for customer1 in left_half:
         for customer2 in right_half:
+            print(f"Processing pair: {customer1['name']} - {customer2['name']}")
             if await check_same_route(customer1, customer2, max_distance_threshold):
                 result = await process_pair(customer1, customer2, max_distance_threshold, max_time_interval)
                 if result:
