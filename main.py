@@ -317,7 +317,6 @@ def remove_seconds_from_time(time_str):
 
 @app.post("/optimize-pooling/")
 async def optimize_pooling(max_distance_threshold: float = 5, max_time_interval: int = 20, file: UploadFile = File(...)):
-
     print("Optimize Pooling API called.")
 
     optimized_pairs = []
@@ -325,20 +324,27 @@ async def optimize_pooling(max_distance_threshold: float = 5, max_time_interval:
 
     customers = read_customer_data_from_csv(await file.read())
 
-    for i in range(len(customers)):
-        for j in range(i+1, len(customers)):
-            customer1 = customers[i]
-            customer2 = customers[j]
+    i = 0
+    j = 1
 
-            customer_count += 1  # Increment the counter for each pair of customers
+    while i < len(customers) - 1:
+        customer1 = customers[i]
+        customer2 = customers[j]
 
-            print(f"Processing pair: {customer1['name']} - {customer2['name']}")  # Print the pair of customer names
+        customer_count += 1  # Increment the counter for each pair of customers
 
-            if await check_same_route(customer1, customer2, max_distance_threshold):
-                result = await process_pair(customer1, customer2, max_distance_threshold, max_time_interval)
-                if result:
-                    optimized_pairs.append(result)
-                    print(optimized_pairs)
+        print(f"Processing pair: {customer1['name']} - {customer2['name']}")  # Print the pair of customer names
+
+        if await check_same_route(customer1, customer2, max_distance_threshold):
+            result = await process_pair(customer1, customer2, max_distance_threshold, max_time_interval)
+            if result:
+                optimized_pairs.append(result)
+                print(optimized_pairs)
+
+        j += 1
+        if j == len(customers):
+            i += 1
+            j = i + 1
 
     if not optimized_pairs:
         print("No optimized pairs found within the given thresholds.")
@@ -443,3 +449,8 @@ async def get_time_difference(time1, time2):
     t2 = datetime.strptime(time2, fmt)
     delta = abs(t1 - t2)
     return delta.total_seconds() / 60
+
+# pairs = [('Ronald Dsouza', 'Asha', 2.961, '09:00', '09:00'), ('Ronald Dsouza', 'Shanika Patel', 2.315, '09:00', '09:00'), ('Ronald Dsouza', 'Anurag', 4.632, '09:00', '08:45'), ('Gune', 'Anithaa Nagaraja', 0.973, '09:50', '09:30'), ('Gune', 'Qwerty', 3.941, '09:50', '10:00'), ('Gune', 'Sooraj Tom', 4.99, '09:50', '10:00'), ('Asha', 'Shanika Patel', 2.252, '09:00', '09:00'), ('Qwerty', 'Shubham', 3.644, '10:00', '10:00'), ('Qwerty', 'Arundhati', 3.645, '10:00', '10:00'), ('Divya', 'Priyanjali', 0.0, '08:30', '08:30'), ('Divya', 'Dhiraj', 2.407, '08:30', '08:23'), ('Divya', 'Palak', 3.987, '08:30', '08:40'), ('Priyanjali', 'Dhiraj', 2.407, '08:30', '08:23'), ('Priyanjali', 'Palak', 3.987, '08:30', '08:40'), ('Suno', 'Ram Kasuru', 0.171, '09:35', '09:45'), ('Suno', 'Indu', 3.078, '09:35', '09:20'), ('Suno', 'Samiksha Kapoor', 3.773, '09:35', '09:30'), ('Suno', 'Aniz', 4.016, '09:35', '09:30'), ('Suno', 'Shruti Waghmare', 4.337, '09:35', '09:30'), ('Sulbha', 'R Agarwal', 0.883, '09:00', '09:10'), ('Sulbha', 'Sahana', 2.788, '09:00', '09:00'), ('Rama', 'Anisha Patnaik', 0.331, '08:15', '08:15'), ('Simran', 'Lakshmi', 1.551, '09:30', '09:25'), ('Simran', 'Shiladitya Chatterjee', 2.518, '09:30', '09:30'), ('Simran', 'Samiksha Kapoor', 4.246, '09:30', '09:30'), ('Simran', 'Aniz', 4.085, '09:30', '09:30'), ('Simran', 'Shruti Waghmare', 4.406, '09:30', '09:30'), ('Simran', 'Poornima Prabhu', 4.821, '09:30', '09:30'), ('Anisha Patnaik', 'Ashika Drolia', 2.405, '08:15', '08:30'), ('Anisha Patnaik', 'Dhiraj', 4.888, '08:15', '08:23'), ('Anisha Patnaik', 'Asha', 4.777, '08:15', '08:30'), ('R Agarwal', 'Amar Kant Gupta', 3.654, '09:10', '09:30'), ('R Agarwal', 'Aruna P', 4.523, '09:10', '09:20'), ('Shubham', 'Arundhati', 0.001, '10:00', '10:00'), ('Anurag', 'krissel Monteiro', 2.348, '08:45', '08:25'), ('Anurag', 'Jaswin Anand', 2.337, '08:45', '08:30')]
+# formatted_pairs = '\n'.join([f"{pair[0]} - {pair[1]}: Distance = {pair[2]} km, Time1 = {pair[3]}, Time2 = {pair[4]}" for pair in pairs])
+#
+# print(formatted_pairs)
