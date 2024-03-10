@@ -9,4 +9,3 @@ pydantic_settings
 python-multipart
 slowapi
 googlemaps
-UploadFile
