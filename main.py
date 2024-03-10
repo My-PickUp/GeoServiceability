@@ -277,19 +277,20 @@ def update_cities(city_data: Update_cities):
 api_key = 'AIzaSyCNrNiAIsXKD84dZbamrDLCofJ_NNMoLNM'  # Replace 'YOUR_API_KEY' with your actual API key
 gmaps = googlemaps.Client(key=api_key)
 
-def read_customer_data_from_csv(csv_file_path):
+route_cache = {}
+
+optimized_pairs_list = []
+
+def read_customer_data_from_csv(csv_data):
     customers = []
-    with open(csv_file_path, "r", newline='') as csvfile:
-        reader = csv.reader(csvfile)
-        # Skip header if present
-        next(reader, None)
-        for row in reader:
-            # Assuming the CSV structure is: Name, Start Location, End Location, Time
-            name = row[1]  # Name
-            pickup_location = f"{row[2]}, {row[3]}"  # Start Location
-            drop_location = f"{row[4]}, {row[5]}"  # End Location
-            time = remove_seconds_from_time(row[6])  # Time
-            customers.append({'name': name, 'pickup_location': pickup_location, 'drop_location': drop_location, 'time': time})
+    reader = csv.DictReader(csv_data.decode("utf-8").splitlines())
+    for row in reader:
+        customers.append({
+            'name': row.get('customer_name'),
+            'pickup_location': f"{row.get('customer_lat_pickup')}, {row.get('customer_lon_pickup')}",
+            'drop_location': f"{row.get('customer_lat_drop')}, {row.get('customer_lon_drop')}",
+            'time': remove_seconds_from_time(row.get('ride_date_time'))
+        })
     return customers
 
 def remove_seconds_from_time(time_str):
@@ -314,20 +315,15 @@ def remove_seconds_from_time(time_str):
         else:
             return time_str
 
-csv_file_path = '/Users/saionmukherjeesmacbookpro/Downloads/lead_customers_data.csv'  # Replace with the path to your CSV file
-customers = read_customer_data_from_csv(csv_file_path)
-
-# Cache for route planning and distance calculation results
-route_cache = {}
-
-optimized_pairs_list = []
-@app.get("/optimize-pooling/")
-async def optimize_pooling(max_distance_threshold: float = 5, max_time_interval: int = 20):
+@app.post("/optimize-pooling/")
+async def optimize_pooling(max_distance_threshold: float = 5, max_time_interval: int = 20, file: UploadFile = File(...)):
 
     print("Optimize Pooling API called.")
 
     optimized_pairs = []
     customer_count = 0  # Counter for the number of customers processed
+
+    customers = read_customer_data_from_csv(await file.read())
 
     for i in range(len(customers)):
         for j in range(i+1, len(customers)):
@@ -353,7 +349,6 @@ async def optimize_pooling(max_distance_threshold: float = 5, max_time_interval:
     print("Optimization completed successfully.")
     print(f"Number of customers processed: {customer_count}")  # Print the number of customers processed
     return {"optimized_pairs": optimized_pairs}
-
 
 async def process_pair(customer1, customer2, max_distance_threshold, max_time_interval):
     print(f"Processing pair: {customer1['name']} - {customer2['name']}")
@@ -448,56 +443,3 @@ async def get_time_difference(time1, time2):
     t2 = datetime.strptime(time2, fmt)
     delta = abs(t1 - t2)
     return delta.total_seconds() / 60
-
-# max_distance_threshold = 5  # Maximum distance threshold in kilometers
-# max_time_interval = 20  # Maximum time interval in minutes
-#
-# optimized_pairs = find_optimized_pooling(customers, max_distance_threshold, max_time_interval)
-#
-# print(
-#     f"Optimized Pairs for Pooling (within {max_distance_threshold} km and at least {max_time_interval} minutes time interval):")
-# for pair in optimized_pairs:
-#     print(f"{pair[0]} and {pair[1]} - Distance: {pair[2]} km, Timings: {pair[3]} and {pair[4]}")
-
-# customers = [
-#     ("Jayanthi", "12.97829892, 77.62327584", "07:30"),
-#     ("Michelle", "12.92513444, 77.67091976", "07:40"),
-#     ("Divya", "12.88196291, 77.64302832", "08:30"),
-#     ("Priyanjali", "12.88196569, 77.6430314", "08:30"),
-#     ("Vishal", "12.92121593, 77.6186117", "08:30"),
-#     ("Kirti", "12.96079998, 77.6558958", "08:30"),
-#     ("Nishali", "12.95398853, 77.65082466", "08:45"),
-#     ("Prasanthi", "12.90826656, 77.67914018", "08:45"),
-#     ("Prerna", "12.90228451, 77.67002904", "08:50"),
-#     ("Sulbha", "12.88428113, 77.66820498", "09:00"),
-#     ("Aruna P", "12.90816163, 77.67840084", "09:20"),
-#     ("Poornima Prabhu", "12.91402652, 77.61614057", "09:30"),
-#     ("Srushti", "12.91276849, 77.62849367", "09:30"),
-#     ("Alisha Hafiz", "12.91008094, 77.68153006", "11:00"),
-#     ("Swati", "12.94597306, 77.67876846", "11:15"),
-#     ("Lubna Malhotra", "12.89782214, 77.66785692", "11:45"),
-#     ("Asha", "12.89055682, 77.66876893", "12:30"),
-#     ("Ruella D", "12.97174329, 77.628696", "12:45"),
-#     ("Juanita Marietta Luiz", "12.99128269, 77.6623218", "13:00"),
-#     ("Sindhu", "12.97185443, 77.62859282", "14:30"),
-# ]
-
-# # Initialize Google Maps client with API key
-# api_key = 'AIzaSyCNrNiAIsXKD84dZbamrDLCofJ_NNMoLNM'  # Replace 'YOUR_API_KEY' with your actual API key
-# gmaps = googlemaps.Client(key=api_key)
-#
-#
-# drop_prasanthi = "12.93188306, 77.61444762"
-# drop_sulbha = "12.95975897, 77.64198"
-#
-#
-# route_prasanthi_to_sulbha = gmaps.directions(drop_prasanthi, drop_sulbha, mode="driving")
-# route_sulbha_to_prasanthi = gmaps.directions(drop_sulbha, drop_prasanthi, mode="driving")
-#
-# # Check if the routes overlap
-# if route_prasanthi_to_sulbha and route_sulbha_to_prasanthi:
-#     print("The drop points of Prasanthi and Sulbha lie on the same route.")
-# else:
-#     print("The drop points of Prasanthi and Sulbha do not lie on the same route.")
-#
-
