@@ -315,7 +315,6 @@ def remove_seconds_from_time(time_str):
         else:
             return time_str
 
-
 @app.post("/optimize-pooling/")
 async def optimize_pooling(max_distance_threshold: float = 5, max_time_interval: int = 20, file: UploadFile = File(...)):
 
@@ -326,7 +325,27 @@ async def optimize_pooling(max_distance_threshold: float = 5, max_time_interval:
 
     customers = read_customer_data_from_csv(await file.read())
 
-    optimized_pairs = await divide_and_conquer(customers, max_distance_threshold, max_time_interval)
+    i = 0
+    j = 1
+
+    while i < len(customers) - 1:
+        customer1 = customers[i]
+        customer2 = customers[j]
+
+        customer_count += 1  # Increment the counter for each pair of customers
+
+        print(f"Processing pair: {customer1['name']} - {customer2['name']}")  # Print the pair of customer names
+
+        if await check_same_route(customer1, customer2, max_distance_threshold):
+            result = await process_pair(customer1, customer2, max_distance_threshold, max_time_interval)
+            if result:
+                optimized_pairs.append(result)
+                print(optimized_pairs)
+
+        j += 1
+        if j == len(customers):
+            i += 1
+            j = i + 1
 
     if not optimized_pairs:
         print("No optimized pairs found within the given thresholds.")
@@ -337,51 +356,6 @@ async def optimize_pooling(max_distance_threshold: float = 5, max_time_interval:
     print("Optimization completed successfully.")
     print(f"Number of customers processed: {customer_count}")  # Print the number of customers processed
     return {"optimized_pairs": optimized_pairs}
-
-
-async def divide_and_conquer(customers, max_distance_threshold, max_time_interval):
-    """
-    Divide and conquer approach to optimize pairwise comparison.
-    """
-
-    if len(customers) <= 1:
-        return []
-
-    mid = len(customers) // 2
-    left_half = customers[:mid]
-    right_half = customers[mid:]
-
-    left_pairs = await divide_and_conquer(left_half, max_distance_threshold, max_time_interval)
-    right_pairs = await divide_and_conquer(right_half, max_distance_threshold, max_time_interval)
-
-    merged_pairs = await merge_pairs(left_half, right_half, left_pairs, right_pairs, max_distance_threshold, max_time_interval)
-
-    return merged_pairs
-
-
-async def merge_pairs(left_half, right_half, left_pairs, right_pairs, max_distance_threshold, max_time_interval):
-    """
-    Merge pairs from left and right halves, and filter pairs that meet the optimization criteria.
-    """
-    merged_pairs = []
-
-    for customer1 in left_half:
-        for customer2 in right_half:
-            print(f"Processing pair: {customer1['name']} - {customer2['name']}")
-            if await check_same_route(customer1, customer2, max_distance_threshold):
-                result = await process_pair(customer1, customer2, max_distance_threshold, max_time_interval)
-                if result:
-                    merged_pairs.append(result)
-
-    for pair in left_pairs:
-        if pair not in merged_pairs:
-            merged_pairs.append(pair)
-
-    for pair in right_pairs:
-        if pair not in merged_pairs:
-            merged_pairs.append(pair)
-
-    return merged_pairs
 
 
 async def process_pair(customer1, customer2, max_distance_threshold, max_time_interval):
@@ -401,6 +375,8 @@ async def process_pair(customer1, customer2, max_distance_threshold, max_time_in
         time_interval = abs(await get_time_difference(customer1['time'], customer2['time']))
         if distance <= max_distance_threshold and time_interval <= max_time_interval:
             optimized_pair = (customer1['name'], customer2['name'], distance, customer1['time'], customer2['time'])
+            optimized_pairs_list.append(optimized_pair)  # Append to optimized_pairs_list
+            print(f"Optimized pair found: {customer1['name']} - {customer2['name']}")
             return optimized_pair
     return None
 
