@@ -2253,15 +2253,12 @@ async def optimize_pooling(max_distance_threshold: float = 5, max_time_interval:
 
     optimized_pairs = []
 
-    customer_combinations = list(combinations(json_customers, 2))
+    for i in range(len(json_customers)):
+        for j in range(i+1, len(json_customers)):
+            customer1 = json_customers[i]
+            customer2 = json_customers[j]
 
-    num_customers_per_batch = 100
-    for i in range(0, len(customer_combinations), num_customers_per_batch):
-        batch_combinations = customer_combinations[i:i+num_customers_per_batch]
-
-        batch_results = await asyncio.gather(*[process_pair(pair, max_distance_threshold, max_time_interval) for pair in batch_combinations])
-
-        for result in batch_results:
+            result = await process_pair(customer1, customer2, max_distance_threshold, max_time_interval)
             if result:
                 optimized_pairs.append(result)
 
@@ -2275,9 +2272,7 @@ async def optimize_pooling(max_distance_threshold: float = 5, max_time_interval:
     return {"optimized_pairs": optimized_pairs}
 
 
-async def process_pair(pair, max_distance_threshold, max_time_interval):
-    customer1, customer2 = pair
-
+async def process_pair(customer1, customer2, max_distance_threshold, max_time_interval):
     print(f"Processing pair: {customer1['name']} - {customer2['name']}")
 
     key = (customer1['pickup_location'], customer1['drop_location'], customer2['pickup_location'], customer2['drop_location'])
@@ -2299,7 +2294,6 @@ async def process_pair(pair, max_distance_threshold, max_time_interval):
             return optimized_pair
     return None
 
-
 async def plan_route(start_point, end_point):
     """
     Plan the route from start_point to end_point.
@@ -2308,29 +2302,37 @@ async def plan_route(start_point, end_point):
     directions_result = gmaps.directions(start_point, end_point, mode="driving", departure_time=datetime.now())
     return directions_result
 
-
 async def check_route_overlap(route1, route2):
     """
     Check if route1 passes through any point in route2.
     Extract start and end locations from each step in both routes
     """
     print("Checking route overlap.")
-    route1_locations = set()
-    for leg1 in route1[0]['legs']:
-        for step1 in leg1['steps']:
-            route1_locations.add((step1['start_location']['lat'], step1['start_location']['lng']))
-            route1_locations.add((step1['end_location']['lat'], step1['end_location']['lng']))
 
-    route2_locations = set()
-    for leg2 in route2[0]['legs']:
-        for step2 in leg2['steps']:
-            route2_locations.add((step2['start_location']['lat'], step2['start_location']['lng']))
-            route2_locations.add((step2['end_location']['lat'], step2['end_location']['lng']))
+    route1_coordinates = get_route_coordinates(route1)
+    route2_coordinates = get_route_coordinates(route2)
 
-    if route1_locations.intersection(route2_locations):
-        return True
+    for coord1 in route1_coordinates:
+        for coord2 in route2_coordinates:
+            if coord1 == coord2:
+                return True
+
     return False
 
+def get_route_coordinates(route):
+    """
+    Extract coordinates from each step in the route.
+    """
+    route_coordinates = set()
+
+    for leg in route[0]['legs']:
+        for step in leg['steps']:
+            start_coord = (step['start_location']['lat'], step['start_location']['lng'])
+            end_coord = (step['end_location']['lat'], step['end_location']['lng'])
+            route_coordinates.add(start_coord)
+            route_coordinates.add(end_coord)
+
+    return route_coordinates
 
 async def calculate_distance(coord1, coord2):
     """
@@ -2340,7 +2342,6 @@ async def calculate_distance(coord1, coord2):
     result = gmaps.distance_matrix(coord1, coord2, mode='driving', units='metric')
     distance = result['rows'][0]['elements'][0]['distance']['value'] / 1000  # Convert meters to kilometers
     return distance
-
 
 async def get_time_difference(time1, time2):
     '''
@@ -2352,7 +2353,6 @@ async def get_time_difference(time1, time2):
     t2 = datetime.strptime(time2, fmt)
     delta = abs(t1 - t2)
     return delta.total_seconds() / 60
-
 
 # max_distance_threshold = 5  # Maximum distance threshold in kilometers
 # max_time_interval = 20  # Maximum time interval in minutes
