@@ -325,31 +325,27 @@ async def optimize_pooling(max_distance_threshold: float = 5, max_time_interval:
 
     customers = read_customer_data_from_csv(await file.read())
 
-    customers.sort(key=lambda x: x['pickup_location'])  # Sort customers based on pickup location
+    i = 0
+    j = 1
 
-    window_size = 2  # Size of the sliding window
-    window_start = 0
+    while i < len(customers) - 1:
+        customer1 = customers[i]
+        customer2 = customers[j]
 
-    while window_start < len(customers) - 1:
-        window_end = min(window_start + window_size, len(customers))
-        window = customers[window_start:window_end]
+        customer_count += 1  # Increment the counter for each pair of customers
 
-        for i in range(len(window)):
-            for j in range(i+1, len(window)):
-                customer1 = window[i]
-                customer2 = window[j]
+        print(f"Processing pair: {customer1['name']} - {customer2['name']}")  # Print the pair of customer names
 
-                customer_count += 1  # Increment the counter for each pair of customers
+        if await check_same_route(customer1, customer2, max_distance_threshold):
+            result = await process_pair(customer1, customer2, max_distance_threshold, max_time_interval)
+            if result:
+                optimized_pairs.append(result)
+                print(optimized_pairs)
 
-                print(f"Processing pair: {customer1['name']} - {customer2['name']}")  # Print the pair of customer names
-
-                if await check_same_route(customer1, customer2, max_distance_threshold):
-                    result = await process_pair(customer1, customer2, max_distance_threshold, max_time_interval)
-                    if result:
-                        optimized_pairs.append(result)
-                        print(optimized_pairs)
-
-        window_start += 1
+        j += 1
+        if j == len(customers):
+            i += 1
+            j = i + 1
 
     if not optimized_pairs:
         print("No optimized pairs found within the given thresholds.")
