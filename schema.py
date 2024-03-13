@@ -29,3 +29,17 @@ class Update_cities(BaseModel):
     city_id : int
     user_email : str 
     serviceability : bool
+
+class LeadCustomers(BaseModel):
+    id: int
+    name: str
+    phone: str
+    pickup_lat: float
+    pickup_lng: float
+    drop_lat: float
+    drop_lng: float
+    pickup_cell_id: str
+    drop_cell_id: str
+
+    class Config:
+        orm_mode = True

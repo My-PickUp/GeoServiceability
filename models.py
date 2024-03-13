@@ -36,3 +36,5 @@ class User_cities(Base):
     city_id = Column(Integer, ForeignKey("cities.id", ondelete="CASCADE"), nullable=False)
     user_email = Column(String, nullable=False)
     done_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
+
+

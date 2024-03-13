@@ -4,7 +4,7 @@ from sqlalchemy.orm import sessionmaker
 
 
 DATABASE_URL = 'postgresql://telkestech%40gmail.com:ShXixZT5YV6u@ep-red-bird-68334114.ap-southeast-1.aws.neon.tech/GeoServiceability?sslmode=require'
-
+# DATABASE_URL = 'postgresql://chityanjs:Nfqyolj4Swz1@ep-plain-wildflower-79539467.ap-southeast-1.aws.neon.tech/tess?sslmode=require'
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
