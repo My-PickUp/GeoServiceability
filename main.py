@@ -1,5 +1,8 @@
 from typing import List
 import csv,json
+import requests
+import aiohttp
+
 from fastapi import File, UploadFile
 from datetime import datetime
 from fastapi import FastAPI, HTTPException
@@ -273,12 +276,12 @@ def update_cities(city_data: Update_cities):
 
 
 
-# Initialize Google Maps client with API key
+# # Initialize Google Maps client with API key
 # api_key = 'AIzaSyCNrNiAIsXKD84dZbamrDLCofJ_NNMoLNM'  # Replace 'YOUR_API_KEY' with your actual API key
 # gmaps = googlemaps.Client(key=api_key)
 #
 # route_cache = {}
-#
+# #
 # optimized_pairs_list = []
 #
 # def read_customer_data_from_csv(csv_data):
@@ -292,7 +295,7 @@ def update_cities(city_data: Update_cities):
 #             'time': remove_seconds_from_time(row.get('ride_date_time'))
 #         })
 #     return customers
-#
+# #
 # def remove_seconds_from_time(time_str):
 #     """
 #     Removes seconds from the time string.
@@ -458,3 +461,243 @@ def update_cities(city_data: Update_cities):
 #
 # print(formatted_pairs)
 
+# import requests
+# import json
+#
+# def is_pickup_pooling_pair(latitude_origin, longitude_origin, latitude_destination, longitude_destination):
+#     url = 'https://api.tomtom.com/routing/matrix/2?key=LAXUKuTXwnsgGanpfAbGieVR29oAHvvR'
+#
+#     payload = {
+#         "origins": [
+#             {
+#                 "point": {
+#                     "latitude": latitude_origin,
+#                     "longitude": longitude_origin
+#                 }
+#             }
+#         ],
+#         "destinations": [
+#             {
+#                 "point": {
+#                     "latitude": latitude_destination,
+#                     "longitude": longitude_destination
+#                 }
+#             }
+#         ]
+#     }
+#
+#     headers = {
+#         'Content-Type': 'application/json'
+#     }
+#
+#     response = requests.post(url, json=payload, headers=headers)
+#
+#     if response.status_code == 200:
+#         data = response.json()
+#         parsed_json = json.loads(json.dumps(data))
+#         length_in_kilo_meters = parsed_json['data'][0]['routeSummary']['lengthInMeters'] / 1000
+#         if length_in_kilo_meters <= 5:
+#             return True
+#     return False
+#
+# # Example usage:
+# latitude_origin = 12.90228451
+# longitude_origin = 77.67002904
+# latitude_destination = 12.9024866
+# longitude_destination = 77.67007001
+#
+# if is_pickup_pooling_pair(latitude_origin, longitude_origin, latitude_destination, longitude_destination):
+#     print("This is a pickup pooling pair")
+# else:
+#     print("This is not a pickup pooling pair")
+
+
+import requests
+import json
+
+# def read_customer_data_from_csv(csv_data):
+#     customers = []
+#     reader = csv.DictReader(csv_data.decode("utf-8").splitlines())
+#     for row in reader:
+#         customers.append({
+#             'name': row.get('customer_name'),
+#             'pickup_location': f"{row.get('customer_lat_pickup')}, {row.get('customer_lon_pickup')}",
+#             'drop_location': f"{row.get('customer_lat_drop')}, {row.get('customer_lon_drop')}",
+#             'time': remove_seconds_from_time(row.get('ride_date_time'))
+#         })
+#     return customers
+# #
+# def remove_seconds_from_time(time_str):
+#     """
+#     Removes seconds from the time string.
+#     If the time string contains a date part, removes the date part as well.
+#     """
+#     # Split the time string by space to handle scenarios with a date part
+#     time_parts = time_str.split(' ')
+#     if len(time_parts) >= 2:  # Check if there is a date part
+#         # Split the time part by colon to handle scenarios with seconds
+#         time_time_parts = time_parts[1].split(':')
+#         if len(time_time_parts) >= 2:  # Ensure there are at least two parts (hours and minutes)
+#             return time_parts[1]  # Keep only the second part (time)
+#         else:
+#             return time_parts[1]  # Return the time part with removed date
+#     else:
+#         # Split the time string by colon to handle scenarios without a date part
+#         time_parts = time_str.split(':')
+#         if len(time_parts) >= 2:  # Ensure there are at least two parts (hours and minutes)
+#             return ':'.join(time_parts[0:2])  # Keep only the first two parts (hours and minutes)
+#         else:
+#             return time_str
+# def is_pooling_pair(pickup_lat1, pickup_lng1, pickup_lat2, pickup_lng2, drop_lat1, drop_lng1, drop_lat2, drop_lng2):
+#     url = 'https://api.tomtom.com/routing/matrix/2?key=LAXUKuTXwnsgGanpfAbGieVR29oAHvvR'
+#
+#     # Check if customers can be pooled for pickup
+#     pickup_pair_pooled = check_pooling(pickup_lat1, pickup_lng1, pickup_lat2, pickup_lng2, url)
+#
+#     # Check if customers can be pooled for drop
+#     drop_pair_pooled = check_pooling(drop_lat1, drop_lng1, drop_lat2, drop_lng2, url)
+#
+#     # Return True if both pickup and drop pairs are pooled
+#     return pickup_pair_pooled and drop_pair_pooled
+#
+# def check_pooling(lat1, lng1, lat2, lng2, url):
+#     payload = {
+#         "origins": [
+#             {
+#                 "point": {
+#                     "latitude": lat1,
+#                     "longitude": lng1
+#                 }
+#             }
+#         ],
+#         "destinations": [
+#             {
+#                 "point": {
+#                     "latitude": lat2,
+#                     "longitude": lng2
+#                 }
+#             }
+#         ]
+#     }
+#
+#     headers = {
+#         'Content-Type': 'application/json'
+#     }
+#
+#     response = requests.post(url, json=payload, headers=headers)
+#
+#     if response.status_code == 200:
+#         data = response.json()
+#         parsed_json = json.loads(json.dumps(data))
+#         length_in_kilo_meters = parsed_json['data'][0]['routeSummary']['lengthInMeters'] / 1000
+#         if length_in_kilo_meters <= 5:
+#             return True
+#     return False
+#
+# # Example usage:
+# pickup_lat1 = 12.908052
+# pickup_lng1 = 77.642268
+# pickup_lat2 = 12.88196569
+# pickup_lng2 = 77.6430314
+#
+# drop_lat1 = 12.9134783
+# drop_lng1 = 77.6664892
+# drop_lat2 = 12.91198025
+# drop_lng2 = 77.65263863
+#
+# if is_pooling_pair(pickup_lat1, pickup_lng1, pickup_lat2, pickup_lng2, drop_lat1, drop_lng1, drop_lat2, drop_lng2):
+#     print("These customers can be pooled.")
+# else:
+#     print("These customers cannot be pooled.")
+
+API_KEY = '11trl88wFhyzMhZyEVB5hEBMaKvQFpDY'
+URL = f'https://api.tomtom.com/routing/matrix/2?key={API_KEY}'
+
+def is_pooling_pair(pickup_lat1, pickup_lng1, pickup_lat2, pickup_lng2, drop_lat1, drop_lng1, drop_lat2, drop_lng2):
+    # Check if customers can be pooled for pickup and drop
+    pickup_pair_pooled = check_pooling(pickup_lat1, pickup_lng1, pickup_lat2, pickup_lng2)
+    drop_pair_pooled = check_pooling(drop_lat1, drop_lng1, drop_lat2, drop_lng2)
+
+    # Return True if both pickup and drop pairs are pooled
+    return pickup_pair_pooled and drop_pair_pooled
+
+def check_pooling(lat1, lng1, lat2, lng2):
+    payload = {
+        "origins": [{"point": {"latitude": lat1, "longitude": lng1}}],
+        "destinations": [{"point": {"latitude": lat2, "longitude": lng2}}]
+    }
+
+    headers = {'Content-Type': 'application/json'}
+
+    start_time = time.time()  # Record the start time of the request
+    response = requests.post(URL, json=payload, headers=headers)
+    end_time = time.time()  # Record the end time of the request
+
+    # Check if the request was successful
+    if response.status_code == 200:
+        data = response.json()
+        parsed_json = json.loads(json.dumps(data))
+        length_in_kilo_meters = parsed_json['data'][0]['routeSummary']['lengthInMeters'] / 1000
+        return length_in_kilo_meters <= 5
+    else:
+        print(f"Error: {response.status_code}. Failed to fetch data.")
+        return False
+
+    # Calculate the time taken for the request
+    elapsed_time = end_time - start_time
+
+    # Wait if necessary to respect the rate limit (5 requests per second)
+    if elapsed_time < 0.2:
+        time.sleep(0.2 - elapsed_time)
+
+def process_csv(filename):
+    results = []
+    with open(filename, mode='r') as file:
+        csv_reader = csv.DictReader(file)
+
+        # Get all rows in the CSV file
+        rows = list(csv_reader)
+
+        # Generate combinations of pickup and drop pairs
+        pairs = list(combinations(rows, 2))
+
+        for pair in pairs:
+            # Extracting customer data for the pair
+            row1, row2 = pair
+
+            # Pickup locations
+            pickup_lat1 = float(row1['customer_lat_pickup'])
+            pickup_lng1 = float(row1['customer_lon_pickup'])
+            pickup_lat2 = float(row2['customer_lat_pickup'])
+            pickup_lng2 = float(row2['customer_lon_pickup'])
+
+            # Drop locations
+            drop_lat1 = float(row1['customer_lat_drop'])
+            drop_lng1 = float(row1['customer_lon_drop'])
+            drop_lat2 = float(row2['customer_lat_drop'])
+            drop_lng2 = float(row2['customer_lon_drop'])
+
+            # Process the pair
+            result = is_pooling_pair(pickup_lat1, pickup_lng1, pickup_lat2, pickup_lng2, drop_lat1, drop_lng1, drop_lat2, drop_lng2)
+
+            # Append the result to the list
+            results.append((pair, result))
+
+            # Wait for 1 second between processing each pair
+            time.sleep(1)
+
+    return results
+
+# Example usage:
+output = process_csv('/Users/saionmukherjeesmacbookpro/Downloads/customer - Sheet.csv')
+for pair, result in output:
+    pickup_lat1, pickup_lng1 = float(pair[0]['customer_lat_pickup']), float(pair[0]['customer_lon_pickup'])
+    pickup_lat2, pickup_lng2 = float(pair[1]['customer_lat_pickup']), float(pair[1]['customer_lon_pickup'])
+    drop_lat1, drop_lng1 = float(pair[0]['customer_lat_drop']), float(pair[0]['customer_lon_drop'])
+    drop_lat2, drop_lng2 = float(pair[1]['customer_lat_drop']), float(pair[1]['customer_lon_drop'])
+    print(f"Processing Pair: pickup - ({pickup_lat1}, {pickup_lng1}) | drop - ({pickup_lat2}, {pickup_lng2}), Status: {'These customers can be pooled.' if result else 'These customers cannot be pooled.'}")
+
+# Print the results array
+print("\nResults array:")
+for result in output:
+    print(result)
