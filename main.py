@@ -610,7 +610,7 @@ import json
 # else:
 #     print("These customers cannot be pooled.")
 
-API_KEY = '11trl88wFhyzMhZyEVB5hEBMaKvQFpDY'
+API_KEY = '4HPnfnsZI7ykqQBFMMyGen3coSaAFgC7'
 URL = f'https://api.tomtom.com/routing/matrix/2?key={API_KEY}'
 api_call_counter = 0  # Initialize API call counter
 
@@ -706,7 +706,7 @@ def process_csv(filename):
             # Append the result to the list
             results.append((pair, result))
 
-            # Wait for 1 second between processing each pair
+            # Wait for 1 minute between processing each pair
             time.sleep(60)
 
             print("Processing Result:", "These customers can be pooled." if result else "These customers cannot be pooled.")
