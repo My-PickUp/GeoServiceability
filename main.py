@@ -612,9 +612,11 @@ import json
 
 API_KEY = '11trl88wFhyzMhZyEVB5hEBMaKvQFpDY'
 URL = f'https://api.tomtom.com/routing/matrix/2?key={API_KEY}'
+api_call_counter = 0  # Initialize API call counter
 
 def is_pooling_pair(pickup_lat1, pickup_lng1, pickup_lat2, pickup_lng2, drop_lat1, drop_lng1, drop_lat2, drop_lng2):
     # Check if customers can be pooled for pickup and drop
+    global api_call_counter  # Access the global API call counter
     pickup_pair_pooled = check_pooling(pickup_lat1, pickup_lng1, pickup_lat2, pickup_lng2)
     drop_pair_pooled = check_pooling(drop_lat1, drop_lng1, drop_lat2, drop_lng2)
 
@@ -622,6 +624,7 @@ def is_pooling_pair(pickup_lat1, pickup_lng1, pickup_lat2, pickup_lng2, drop_lat
     return pickup_pair_pooled and drop_pair_pooled
 
 def check_pooling(lat1, lng1, lat2, lng2):
+    global api_call_counter  # Access the global API call counter
     payload = {
         "origins": [{"point": {"latitude": lat1, "longitude": lng1}}],
         "destinations": [{"point": {"latitude": lat2, "longitude": lng2}}]
@@ -632,6 +635,9 @@ def check_pooling(lat1, lng1, lat2, lng2):
     start_time = time.time()  # Record the start time of the request
     response = requests.post(URL, json=payload, headers=headers)
     end_time = time.time()  # Record the end time of the request
+
+    # Increment API call counter
+    api_call_counter += 1
 
     # Check if the request was successful
     if response.status_code == 200:
@@ -652,6 +658,8 @@ def check_pooling(lat1, lng1, lat2, lng2):
 
 def process_csv(filename):
     results = []
+    processed_pairs = set()  # Set to keep track of processed pairs
+
     with open(filename, mode='r') as file:
         csv_reader = csv.DictReader(file)
 
@@ -662,8 +670,23 @@ def process_csv(filename):
         pairs = list(combinations(rows, 2))
 
         for pair in pairs:
+            # Convert the pair of dictionaries into tuples for hashability
+            tuple_pair = (tuple(pair[0].values()), tuple(pair[1].values()))
+
+            # Check if the pair has already been processed
+            if tuple_pair in processed_pairs:
+                continue
+
+            # Add the pair to the set of processed pairs
+            processed_pairs.add(tuple_pair)
+
             # Extracting customer data for the pair
             row1, row2 = pair
+
+            # Print the pair
+            print("Processing Pair:")
+            print("Row 1:", row1)
+            print("Row 2:", row2)
 
             # Pickup locations
             pickup_lat1 = float(row1['customer_lat_pickup'])
@@ -684,20 +707,15 @@ def process_csv(filename):
             results.append((pair, result))
 
             # Wait for 1 second between processing each pair
-            time.sleep(1)
+            time.sleep(60)
+
+            print("Processing Result:", "These customers can be pooled." if result else "These customers cannot be pooled.")
+            print()  # Add a new line for better readability
 
     return results
 
 # Example usage:
-output = process_csv('/Users/saionmukherjeesmacbookpro/Downloads/customer - Sheet.csv')
-for pair, result in output:
-    pickup_lat1, pickup_lng1 = float(pair[0]['customer_lat_pickup']), float(pair[0]['customer_lon_pickup'])
-    pickup_lat2, pickup_lng2 = float(pair[1]['customer_lat_pickup']), float(pair[1]['customer_lon_pickup'])
-    drop_lat1, drop_lng1 = float(pair[0]['customer_lat_drop']), float(pair[0]['customer_lon_drop'])
-    drop_lat2, drop_lng2 = float(pair[1]['customer_lat_drop']), float(pair[1]['customer_lon_drop'])
-    print(f"Processing Pair: pickup - ({pickup_lat1}, {pickup_lng1}) | drop - ({pickup_lat2}, {pickup_lng2}), Status: {'These customers can be pooled.' if result else 'These customers cannot be pooled.'}")
+output = process_csv('/Users/saionmukherjeesmacbookpro/Downloads/UpdatedCustomer - Sheet1.csv')
 
-# Print the results array
-print("\nResults array:")
-for result in output:
-    print(result)
+# Print the number of times the API was called
+print("Number of API calls:", api_call_counter)
